@@ -3,6 +3,9 @@ import { TodoHarnessRemotes } from './todo-harness-remotes.js';
 import { TODO_PRIORITIES, TODO_STATUSES } from '../domain/todo.js';
 import { TodoRepository } from '../storage/todo-repository.js';
 import { UsageRepository } from '../storage/usage-repository.js';
+import { SettingsRepository } from '../storage/settings-repository.js';
+import { resolveTodoHarnessConfig } from './config.js';
+import { createTodoHarnessStore } from './todo-harness-store.js';
 import { installModelDefaults } from './model-defaults.js';
 
 export const name = 'todo-harness';
@@ -22,11 +25,13 @@ const todoFields = {
 };
 
 export async function apply(ctx, config = {}) {
-  if (!config.dataFile || !config.usageFile || !config.workspaceRoot) throw new TypeError('Todo Harness requires dataFile, usageFile, and workspaceRoot');
-  const workspace = await ctx.workspaceRegistry.create(config.workspaceRoot, 'Todo-Harness');
+  const resolvedConfig = resolveTodoHarnessConfig(config);
+  const workspace = await ctx.workspaceRegistry.create(resolvedConfig.workspaceRoot, 'Todo-Harness');
   if (workspace.title !== 'Todo-Harness') await workspace.setTitle('Todo-Harness');
-  const repository = await new TodoRepository(config.dataFile).init();
-  const usageRepository = await new UsageRepository(config.usageFile).init();
+  const repository = await new TodoRepository(resolvedConfig.dataFile).init();
+  const usageRepository = await new UsageRepository(resolvedConfig.usageFile).init();
+  const settingsRepository = await new SettingsRepository(resolvedConfig.settingsFile).init();
+  ctx.provide?.('todoHarnessStore', createTodoHarnessStore({ repository, usageRepository, settingsRepository }));
 
   if (typeof ctx.plugin === 'function') ctx.plugin(TodoHarnessRemotes);
   ctx.inject?.(['llm', 'settings'], (scope) => {

@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { withFileLock } from './file-lock.js';
 
 const DEFAULT_SETTINGS = Object.freeze({ version: 1, agentName: 'Kre-Weave', dailyTokenBudget: 10_000_000 });
 
@@ -28,10 +29,12 @@ export class SettingsRepository {
 
   async update(patch = {}) {
     const operation = this.queue.then(async () => {
-      const current = await this.get();
-      const next = normalizeSettings({ ...current, ...patch });
-      await this.write(next);
-      return publicSettings(next);
+      return withFileLock(this.filePath, async () => {
+        const current = await this.get();
+        const next = normalizeSettings({ ...current, ...patch });
+        await this.write(next);
+        return publicSettings(next);
+      });
     });
     this.queue = operation.catch(() => undefined);
     return operation;

@@ -37,6 +37,10 @@ The launcher starts the Harness Web profile and Todo API, then opens the local p
 
 The default web address is `http://127.0.0.1:3210`, and the Todo API uses the next port. If the ports are occupied, run `npm start -- --port 3220` to choose a web port; the following port must also be available. Run `npm start -- --no-open` to start without opening a browser and print the local URL.
 
+### As a Harness plugin
+
+Users who already have DeepSeek Harness can install the Todo bundle without the standalone launcher. See the [plugin guide](docs/plugin.md) for installation and data locations.
+
 ## Data, updates, and backups
 
 Todo data, usage, and app settings are stored under `~/.todo-harness` by default (`%USERPROFILE%\.todo-harness` on Windows). The Harness profile and browser authentication data are stored in its `dsh` subdirectory. Stop the service before backing up the entire data directory. Restoring it on another machine preserves local tasks and the Harness profile.

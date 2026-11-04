@@ -119,6 +119,78 @@ const TODO_HARNESS_REMOTE = {
       invocation: { kind: 'direct' },
       parameters: [{ name: 'selection', wire: 'selection', source: 'json', codec: { mode: 'strict', typeSymbol: 'todo-harness#ModelSelection', create: () => ({}) } }],
       result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/setDefaultModel:result', create: () => ({}) }
+    },
+    {
+      id: 'todo-harness#todoHarness/listTodos',
+      service: 'todoHarness',
+      namespace: 'todoHarness',
+      method: 'listTodos',
+      invocation: { kind: 'direct' },
+      parameters: [{ name: 'filters', wire: 'filters', source: 'json', codec: { mode: 'strict', typeSymbol: 'todo-harness#TodoFilters', create: () => ({}) } }],
+      result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/listTodos:result', create: () => ({}) }
+    },
+    {
+      id: 'todo-harness#todoHarness/createTodo',
+      service: 'todoHarness',
+      namespace: 'todoHarness',
+      method: 'createTodo',
+      invocation: { kind: 'direct' },
+      parameters: [{ name: 'input', wire: 'input', source: 'json', codec: { mode: 'strict', typeSymbol: 'todo-harness#TodoInput', create: () => ({}) } }],
+      result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/createTodo:result', create: () => ({}) }
+    },
+    {
+      id: 'todo-harness#todoHarness/updateTodo',
+      service: 'todoHarness',
+      namespace: 'todoHarness',
+      method: 'updateTodo',
+      invocation: { kind: 'direct' },
+      parameters: [{ name: 'payload', wire: 'payload', source: 'json', codec: { mode: 'strict', typeSymbol: 'todo-harness#TodoUpdatePayload', create: () => ({}) } }],
+      result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/updateTodo:result', create: () => ({}) }
+    },
+    {
+      id: 'todo-harness#todoHarness/deleteTodo',
+      service: 'todoHarness',
+      namespace: 'todoHarness',
+      method: 'deleteTodo',
+      invocation: { kind: 'direct' },
+      parameters: [{ name: 'id', wire: 'id', source: 'json', codec: { mode: 'strict', typeSymbol: 'todo-harness#TodoId', create: () => '' } }],
+      result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/deleteTodo:result', create: () => ({}) }
+    },
+    {
+      id: 'todo-harness#todoHarness/getSettings',
+      service: 'todoHarness',
+      namespace: 'todoHarness',
+      method: 'getSettings',
+      invocation: { kind: 'direct' },
+      parameters: [],
+      result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/getSettings:result', create: () => ({}) }
+    },
+    {
+      id: 'todo-harness#todoHarness/updateSettings',
+      service: 'todoHarness',
+      namespace: 'todoHarness',
+      method: 'updateSettings',
+      invocation: { kind: 'direct' },
+      parameters: [{ name: 'patch', wire: 'patch', source: 'json', codec: { mode: 'strict', typeSymbol: 'todo-harness#SettingsPatch', create: () => ({}) } }],
+      result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/updateSettings:result', create: () => ({}) }
+    },
+    {
+      id: 'todo-harness#todoHarness/getUsage',
+      service: 'todoHarness',
+      namespace: 'todoHarness',
+      method: 'getUsage',
+      invocation: { kind: 'direct' },
+      parameters: [],
+      result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/getUsage:result', create: () => ({}) }
+    },
+    {
+      id: 'todo-harness#todoHarness/getBrandMark',
+      service: 'todoHarness',
+      namespace: 'todoHarness',
+      method: 'getBrandMark',
+      invocation: { kind: 'direct' },
+      parameters: [],
+      result: { mode: 'strict', typeSymbol: 'todo-harness#todoHarness/getBrandMark:result', create: () => '' }
     }
   ]
 };
@@ -131,6 +203,27 @@ function todoHarnessRemote(ctx) {
   const service = ctx.get?.('remote.todoHarness');
   if (!service) throw new Error('Todo Harness Remote 尚未连接');
   return service;
+}
+
+function optionalTodoHarnessRemote(ctx = runtimeContext) {
+  try {
+    return ctx?.get?.('remote.todoHarness') ?? ctx?.remote?.todoHarness ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function callTodoHarnessRemote(method, args, fallback) {
+  const service = optionalTodoHarnessRemote();
+  if (service && typeof service[method] === 'function') {
+    const response = await service[method](...args);
+    if (response && typeof response === 'object' && Object.hasOwn(response, 'ok')) {
+      if (!response.ok) throw new Error(response.error?.message ?? `Todo Harness Remote ${method} failed`);
+      return response.value;
+    }
+    return response;
+  }
+  return fallback();
 }
 
 function setVoiceSetupOpen(open) {
@@ -399,7 +492,7 @@ function busyPreparation(phase) {
   return ['checking', 'downloading', 'loading', 'cancelling'].includes(phase);
 }
 
-  const inject = ['slots', 'sidebarRight', 'sidebarRightTabs', 'sessions', 'workspaces', 'uiWorkspace', 'remote', 'remote.speech', 'remote.settings', 'remote.schedule', 'remote.llm', 'remote.session', 'pluginNavigation', 'configForms', 'settingsSchema'];
+  const inject = ['slots', 'sidebarRight', 'sidebarRightTabs', 'sessions', 'workspaces', 'uiWorkspace', 'remote', 'remote.settings', 'remote.session', 'remote.schedule', 'pluginNavigation', 'configForms', 'settingsSchema'];
 
 function useSettingsState() {
   const [value, setValue] = useState(settingsValue);
@@ -424,11 +517,11 @@ function publishSettings(value) {
 function loadGlobalSettings() {
   if (settingsLoaded) return Promise.resolve(settingsValue);
   if (settingsLoad) return settingsLoad;
-  settingsLoad = fetch(apiUrl('settings'), { cache: 'no-store' })
-    .then((response) => {
-      if (!response.ok) throw new Error(`Request failed (${response.status})`);
-      return response.json();
-    })
+  settingsLoad = callTodoHarnessRemote('getSettings', [], async () => {
+    const response = await fetch(apiUrl('settings'), { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    return response.json();
+  })
     .then((value) => {
       publishSettings(value);
       return settingsValue;
@@ -441,13 +534,16 @@ function loadGlobalSettings() {
 }
 
 async function saveGlobalSettings(patch) {
-  const response = await fetch(apiUrl('settings'), {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(patch)
+  const value = await callTodoHarnessRemote('updateSettings', [patch], async () => {
+    const response = await fetch(apiUrl('settings'), {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(patch)
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error ?? `Request failed (${response.status})`);
+    return result;
   });
-  const value = await response.json();
-  if (!response.ok) throw new Error(value.error ?? `Request failed (${response.status})`);
   publishSettings(value);
   return settingsValue;
 }
@@ -663,13 +759,13 @@ function BrandMark({ size = 24 }) {
 
 function loadBrandMark() {
   if (!brandMarkLoad) {
-    brandMarkLoad = fetch(apiUrl('brand-mark'), { cache: 'no-store' })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Request failed (${response.status})`);
-        return response.blob();
-      })
-      .then((blob) => {
-        brandMarkUrl = URL.createObjectURL(blob);
+    brandMarkLoad = callTodoHarnessRemote('getBrandMark', [], async () => {
+      const response = await fetch(apiUrl('brand-mark'), { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Request failed (${response.status})`);
+      return URL.createObjectURL(await response.blob());
+    })
+      .then((value) => {
+        brandMarkUrl = value;
         return brandMarkUrl;
       })
       .catch((error) => {
@@ -1354,11 +1450,13 @@ function apply(ctx) {
   effect(installModelDiscoveryRemote, 'todo-harness: model discovery URL override');
   effect(() => ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({
     name: 'sidebar.brand.mark',
-    id: 'todo-harness:brand-mark'
+    id: 'todo-harness:brand-mark',
+    priority: -1
   }, BrandMark)), 'todo-harness: sidebar brand mark');
   effect(() => ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register({
     name: 'sidebar.brand.name',
-    id: 'todo-harness:brand-name'
+    id: 'todo-harness:brand-name',
+    priority: -1
   }, BrandName)), 'todo-harness: sidebar brand name');
   effect(() => ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({
     name: 'conversation.hero.brand.mark',
@@ -1974,9 +2072,15 @@ function TodoPanel() {
     setMutation(true);
     setNotice('');
     try {
-      const response = await fetch(apiUrl(path), { method, headers: { 'content-type': 'application/json' }, body: value === undefined ? undefined : JSON.stringify(value) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? `Request failed (${response.status})`);
+      const todoId = decodeURIComponent(path.slice('todos/'.length));
+      if (typeof optionalTodoHarnessRemote(ctx)?.[method === 'DELETE' ? 'deleteTodo' : 'updateTodo'] === 'function') {
+        if (method === 'DELETE') await callTodoHarnessRemote('deleteTodo', [todoId], async () => undefined);
+        else await callTodoHarnessRemote('updateTodo', [{ id: todoId, patch: value ?? {} }], async () => undefined);
+      } else {
+        const response = await fetch(apiUrl(path), { method, headers: { 'content-type': 'application/json' }, body: value === undefined ? undefined : JSON.stringify(value) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? `Request failed (${response.status})`);
+      }
       await refresh();
       setNotice(method === 'DELETE' ? '待办已删除' : '待办已更新');
     } catch (failure) {
@@ -2033,9 +2137,16 @@ function TodoPanel() {
         try {
           const patch = { sessionId: newSessionId, dispatchOptions };
           if (markInProgress) patch.status = 'in_progress';
-          const response = await fetch(apiUrl(`todos/${encodeURIComponent(todo.id)}`), { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) });
-          if (response.ok) await refresh();
-          else noticeText = '任务已交给 Harness，但会话关联未能保存';
+          const todoRemote = ctx.get?.('remote.todoHarness') ?? ctx.remote?.todoHarness;
+          if (typeof todoRemote?.updateTodo === 'function') {
+            const response = await todoRemote.updateTodo({ id: todo.id, patch });
+            if (response && typeof response === 'object' && Object.hasOwn(response, 'ok') && !response.ok) throw new Error(response.error?.message ?? 'Todo 更新失败');
+            await refresh();
+          } else {
+            const response = await fetch(apiUrl(`todos/${encodeURIComponent(todo.id)}`), { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) });
+            if (response.ok) await refresh();
+            else noticeText = '任务已交给 Harness，但会话关联未能保存';
+          }
         } catch {
           noticeText = '任务已交给 Harness，但会话关联未能保存';
         }
@@ -2416,13 +2527,20 @@ function TodoEditor({ todo, todos = [], initialDate = '', kind = 'todo', onClose
           ? todo.startAt ?? null : localInputToIso(values.startDate, values.startTime, false);
         if (values.startTime && !values.startDate) throw new Error('请选择计划执行日期');
         if (values.dueTime && !values.dueDate) throw new Error('请选择截止日期');
-        const response = await fetch(apiUrl(todo ? `todos/${encodeURIComponent(todo.id)}` : 'todos'), {
-          method: todo ? 'PATCH' : 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ title: values.title, notes: values.notes, status: values.status, priority: values.priority, dueAt, startAt, estimatedMinutes, parentId: values.parentId || null, dependsOn: values.dependsOn })
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error ?? `Request failed (${response.status})`);
+        const input = { title: values.title, notes: values.notes, status: values.status, priority: values.priority, dueAt, startAt, estimatedMinutes, parentId: values.parentId || null, dependsOn: values.dependsOn };
+        const remoteMethod = todo ? 'updateTodo' : 'createTodo';
+        if (typeof optionalTodoHarnessRemote()?.[remoteMethod] === 'function') {
+          if (todo) await callTodoHarnessRemote(remoteMethod, [{ id: todo.id, patch: input }], async () => undefined);
+          else await callTodoHarnessRemote(remoteMethod, [input], async () => undefined);
+        } else {
+          const response = await fetch(apiUrl(todo ? `todos/${encodeURIComponent(todo.id)}` : 'todos'), {
+            method: todo ? 'PATCH' : 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(input)
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error ?? `Request failed (${response.status})`);
+        }
         await onSaved();
       } catch (failure) {
         setError(failure.message);
@@ -2945,9 +3063,14 @@ function useApiData(resource, intervalMs) {
   const [error, setError] = useState(null);
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch(apiUrl(resource), { cache: 'no-store' });
-      if (!response.ok) throw new Error(`Request failed (${response.status})`);
-      const result = await response.json();
+      const remoteMethod = resource === 'todos' ? 'listTodos' : resource === 'usage' ? 'getUsage' : null;
+      const result = remoteMethod && typeof optionalTodoHarnessRemote()?.[remoteMethod] === 'function'
+        ? await callTodoHarnessRemote(remoteMethod, resource === 'todos' ? [{ includeArchived: true }] : [], async () => undefined)
+        : await (async () => {
+          const response = await fetch(apiUrl(resource), { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Request failed (${response.status})`);
+          return response.json();
+        })();
       setData(result);
       setError(null);
     } catch (failure) {

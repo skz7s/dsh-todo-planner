@@ -37,6 +37,10 @@ npm start
 
 默认 Web 地址使用 `http://127.0.0.1:3210`，Todo API 使用下一个端口。若端口已占用，可运行 `npm start -- --port 3220` 指定 Web 端口；对应的下一个端口也必须空闲。运行 `npm start -- --no-open` 可在不自动打开浏览器的情况下启动，并打印本地 URL。
 
+### 作为 Harness 插件
+
+已有 DeepSeek Harness 的用户可以只安装 Todo bundle，不使用独立启动器。安装方式和数据目录说明见 [插件版指南](docs/plugin.md)。
+
 ### 数据、升级与备份
 
 Todo 数据、用量和应用设置默认保存在 `~/.todo-harness`（Windows：`%USERPROFILE%\.todo-harness`），Harness profile 和浏览器认证数据默认位于其 `dsh` 子目录。备份前先停止服务，再备份整个数据目录。更换设备时恢复该目录即可保留本地任务与 Harness profile。

@@ -165,11 +165,17 @@ test('starting a future Todo through Harness persists its actual start and inclu
 
 test('Typert host schema names are local segments while Remote codecs use package-qualified symbols', () => {
   assert.deepEqual(TYPERT.schemas.map((schema) => schema.name), [
-    'CreateSchedulePayload', 'ScheduleCreateRequest', 'ScheduleRecord', 'ModelSelection', 'NoResult'
+    'CreateSchedulePayload', 'ScheduleCreateRequest', 'ScheduleRecord', 'ModelSelection',
+    'TodoFilters', 'TodoInput', 'TodoUpdatePayload', 'TodoId', 'SettingsPatch',
+    'TodoListResult', 'TodoResult', 'SettingsResult', 'UsageResult', 'BrandMarkResult',
+    'NoResult'
   ]);
   assert.ok(TYPERT.schemas.every((schema) => !schema.name.includes('#')));
   const createSchedule = TYPERT_REMOTE.descriptors.find((descriptor) => descriptor.method === 'createSchedule');
   assert.equal(createSchedule.parameters[0].codec.typeSymbol, 'todo-harness#CreateSchedulePayload');
+  const listTodos = TYPERT_REMOTE.descriptors.find((descriptor) => descriptor.method === 'listTodos');
+  assert.equal(listTodos.parameters[0].codec.typeSymbol, 'todo-harness#TodoFilters');
+  assert.equal(listTodos.result.typeSymbol, 'todo-harness#todoHarness/listTodos:result');
 });
 
 test('DSH client file registers through Harness native module loader', async () => {
@@ -183,8 +189,14 @@ test('DSH client file registers through Harness native module loader', async () 
   assert.equal(registrations[0].id, 'todo-harness');
   const react = { createElement() {}, useCallback() {}, useEffect() {}, useState() {} };
   const client = registrations[0].factory((specifier) => specifier === 'react' ? react : {});
-  assert.deepEqual([...client.inject], ['slots', 'sidebarRight', 'sidebarRightTabs', 'sessions', 'workspaces', 'uiWorkspace', 'remote', 'remote.speech', 'remote.settings', 'remote.schedule', 'remote.llm', 'remote.session', 'pluginNavigation', 'configForms', 'settingsSchema']);
+  assert.deepEqual([...client.inject], ['slots', 'sidebarRight', 'sidebarRightTabs', 'sessions', 'workspaces', 'uiWorkspace', 'remote', 'remote.settings', 'remote.session', 'remote.schedule', 'pluginNavigation', 'configForms', 'settingsSchema']);
   assert.equal(typeof client.apply, 'function');
+});
+
+test('DSH client brand slots shadow the native brand at a lower priority', async () => {
+  const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
+  assert.match(source, /name: 'sidebar\.brand\.mark',\s+id: 'todo-harness:brand-mark',\s+priority: -1/);
+  assert.match(source, /name: 'sidebar\.brand\.name',\s+id: 'todo-harness:brand-name',\s+priority: -1/);
 });
 
 test('DSH client keeps native Chinese and English locales without conflicting registrations', async () => {

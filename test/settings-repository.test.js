@@ -35,3 +35,13 @@ test('settings updates serialize and reject invalid preferences without losing t
   await assert.rejects(() => store.update({ dailyTokenBudget: 1.5 }), /dailyTokenBudget must be an integer/);
   assert.deepEqual(await store.get(), { agentName: 'Weave', dailyTokenBudget: 120000 });
 });
+
+test('settings updates from separate instances merge under the shared file lock', async () => {
+  const first = await repository();
+  const second = await new SettingsRepository(first.filePath).init();
+  await Promise.all([
+    first.update({ agentName: 'First' }),
+    second.update({ dailyTokenBudget: 250000 })
+  ]);
+  assert.deepEqual(await first.get(), { agentName: 'First', dailyTokenBudget: 250000 });
+});

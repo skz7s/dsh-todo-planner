@@ -43,11 +43,16 @@ async function main() {
   const api = createTodoServer({ repository, usageRepository, settingsRepository, allowedOrigin: `http://127.0.0.1:${webPort}`, port: apiPort });
   await api.listen();
 
-  const patchFile = join(dshHome, 'todo-harness.patch.json');
+  const patchFile = join(dshHome, 'todo-harness.patch.yml');
+  const scheduleDisabledExpression = `!!js "[...ctx.loader.entries()].some(entry => entry.options.id === 'schedule')"`;
   const profilePatch = [{
     insert: [
       { id: 'time-context', name: '@deepseek-ai/dsh-time-context', config: { timeZone: 'Asia/Shanghai' } },
-      { id: 'schedule', name: '@deepseek-ai/dsh-schedule' },
+      {
+        id: 'todo-harness-schedule',
+        name: '@deepseek-ai/dsh-schedule',
+        disabled: scheduleDisabledExpression
+      },
       { id: 'todo-harness', name: 'todo-harness', config: { dataFile, usageFile, workspaceRoot } },
       { id: 'todo-harness-web-search', name: 'todo-harness/web-search' },
       { id: 'ui-plugin-manager', name: '@deepseek-ai/dsh-client-ui-plugin-manager' }
@@ -103,7 +108,9 @@ async function main() {
   { id: 'typert-loader', config: { packages: ['todo-harness'] } },
   { id: 'ui-brand-official', disabled: true }
   ];
-  await writeFile(patchFile, `${JSON.stringify(profilePatch, null, 2)}\n`, 'utf8');
+  const serializedPatch = JSON.stringify(profilePatch, null, 2)
+    .replace(JSON.stringify(scheduleDisabledExpression), scheduleDisabledExpression);
+  await writeFile(patchFile, `${serializedPatch}\n`, 'utf8');
 
   const dshPackage = require.resolve('@deepseek-ai/dsh/package.json');
   const dshBin = join(dirname(dshPackage), 'lib', 'bin.js');

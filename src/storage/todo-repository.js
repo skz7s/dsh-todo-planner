@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { createTodo, isTodo, updateTodo, normalizeStatus } from '../domain/todo.js';
+import { withFileLock } from './file-lock.js';
 
 const EMPTY_DATABASE = { version: 1, revision: 0, todos: [] };
 
@@ -109,11 +110,13 @@ export class TodoRepository {
 
   async _mutate(mutator) {
     const operation = this._queue.then(async () => {
-      const database = await this._read();
-      const result = mutator(database);
-      database.revision += 1;
-      await this._write(database);
-      return clone(result);
+      return withFileLock(this.filePath, async () => {
+        const database = await this._read();
+        const result = mutator(database);
+        database.revision += 1;
+        await this._write(database);
+        return clone(result);
+      });
     });
     this._queue = operation.catch(() => undefined);
     return operation;

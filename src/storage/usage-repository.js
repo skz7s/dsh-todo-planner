@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { nowIso } from '../domain/todo.js';
+import { withFileLock } from './file-lock.js';
 
 const EMPTY_USAGE = { version: 1, entries: [] };
 
@@ -27,11 +28,13 @@ export class UsageRepository {
   async recordUsage(input = {}) {
     const entry = normalizeEntry({ ...input, id: randomUUID(), createdAt: nowIso() });
     const operation = this.queue.then(async () => {
-      const database = await this.read();
-      database.entries.push(entry);
-      database.entries = database.entries.slice(-1000);
-      await this.write(database);
-      return clone(entry);
+      return withFileLock(this.filePath, async () => {
+        const database = await this.read();
+        database.entries.push(entry);
+        database.entries = database.entries.slice(-1000);
+        await this.write(database);
+        return clone(entry);
+      });
     });
     this.queue = operation.catch(() => undefined);
     return operation;

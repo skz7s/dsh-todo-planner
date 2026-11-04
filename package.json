@@ -3,17 +3,31 @@
   "version": "0.1.0",
   "description": "A Todo plugin and side panel for the native DeepSeek Harness web client.",
   "type": "module",
-  "private": true,
+  "license": "Apache-2.0",
+  "files": [
+    "src",
+    "cordis.patch.yml",
+    "docs",
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "keywords": ["deepseek", "harness", "todo", "productivity", "plugin"],
   "main": "./src/plugins/dsh-todo-plugin.js",
   "exports": {
     ".": "./src/plugins/dsh-todo-plugin.js",
     "./client": "./src/dsh/client.js",
     "./typert": "./src/plugins/typert.host.js",
     "./remote": "./src/plugins/typert.remote.js",
+    "./config": "./src/plugins/config.js",
     "./web-search": "./src/plugins/web-search.js",
     "./package.json": "./package.json"
   },
   "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "inject": [
@@ -38,7 +52,7 @@
     "dev": "node --watch src/cli.js",
     "desktop": "electron src/desktop/main.cjs",
     "test": "node --test",
-    "check": "node --check src/desktop/main.cjs && node --check src/cli.js && node --check src/domain/todo.js && node --check src/domain/model-input.js && node --check src/storage/todo-repository.js && node --check src/storage/usage-repository.js && node --check src/storage/settings-repository.js && node --check src/plugins/dsh-todo-plugin.js && node --check src/plugins/model-defaults.js && node --check src/plugins/remote-schemas.js && node --check src/plugins/todo-harness-remotes.js && node --check src/plugins/typert.host.js && node --check src/plugins/typert.remote.js && node --check src/plugins/web-search.js && node --check src/dsh/client.js && node --check src/http/server.js"
+    "check": "node --check src/desktop/main.cjs && node --check src/cli.js && node --check src/domain/todo.js && node --check src/domain/model-input.js && node --check src/storage/file-lock.js && node --check src/storage/todo-repository.js && node --check src/storage/usage-repository.js && node --check src/storage/settings-repository.js && node --check src/plugins/config.js && node --check src/plugins/todo-harness-store.js && node --check src/plugins/dsh-todo-plugin.js && node --check src/plugins/model-defaults.js && node --check src/plugins/remote-schemas.js && node --check src/plugins/todo-harness-remotes.js && node --check src/plugins/typert.host.js && node --check src/plugins/typert.remote.js && node --check src/plugins/web-search.js && node --check src/dsh/client.js && node --check src/http/server.js"
   },
   "dependencies": {
     "@deepseek-ai/cordis-plugin-group": "~1.0.4",

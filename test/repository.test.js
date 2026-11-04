@@ -18,6 +18,18 @@ test('repository persists and serializes concurrent writes', async () => {
   assert.equal((await store.stats()).total, 3);
 });
 
+test('repository serializes writes from separate instances sharing one file', async () => {
+  const first = await repository();
+  const second = await new TodoRepository(first.filePath).init();
+  await Promise.all(Array.from({ length: 20 }, (_, index) => {
+    const store = index % 2 ? first : second;
+    return store.create({ title: `Cross-process task ${index}` });
+  }));
+  const saved = JSON.parse(await readFile(first.filePath, 'utf8'));
+  assert.equal(saved.todos.length, 20);
+  assert.equal(saved.revision, 20);
+});
+
 test('repository rejects unknown ids and writes valid JSON', async () => {
   const store = await repository();
   await assert.rejects(() => store.complete('missing'), { code: 'TODO_NOT_FOUND' });

@@ -1,0 +1,12 @@
+# The plugin bundle inserts only the shared Todo services. Product-specific
+# defaults and native UI choices stay in the standalone profile overlay.
+- insert:
+    - id: todo-harness-schedule
+      name: '@deepseek-ai/dsh-schedule'
+      disabled: !!js "[...ctx.loader.entries()].some(entry => entry.options.id === 'schedule')"
+    - id: todo-harness
+      name: 'todo-harness'
+      config: {}
+- id: typert-loader
+  config:
+    packages: ['todo-harness']
