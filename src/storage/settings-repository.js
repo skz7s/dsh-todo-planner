@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { withFileLock } from './file-lock.js';
 
-const DEFAULT_SETTINGS = Object.freeze({ version: 1, agentName: 'Kre-Weave', dailyTokenBudget: 10_000_000 });
+const DEFAULT_SETTINGS = Object.freeze({ version: 1, dailyTokenBudget: 10_000_000 });
 
 export class SettingsRepository {
   constructor(filePath) {
@@ -48,16 +48,14 @@ export class SettingsRepository {
 }
 
 export function publicSettings(settings) {
-  return { agentName: settings.agentName, dailyTokenBudget: settings.dailyTokenBudget };
+  return { dailyTokenBudget: settings.dailyTokenBudget };
 }
 
 function normalizeSettings(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('settings must be an object');
-  const agentName = typeof value.agentName === 'string' ? value.agentName.trim() : DEFAULT_SETTINGS.agentName;
-  if (!agentName || agentName.length > 60) throw new RangeError('agentName must contain 1 to 60 characters');
   const dailyTokenBudget = value.dailyTokenBudget ?? DEFAULT_SETTINGS.dailyTokenBudget;
   if (!Number.isSafeInteger(dailyTokenBudget) || dailyTokenBudget < 0 || dailyTokenBudget > 1_000_000_000) {
     throw new RangeError('dailyTokenBudget must be an integer between 0 and 1000000000');
   }
-  return { version: 1, agentName, dailyTokenBudget };
+  return { version: 1, dailyTokenBudget };
 }

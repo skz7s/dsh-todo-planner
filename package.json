@@ -1,9 +1,17 @@
 {
-  "name": "todo-harness",
+  "name": "dsh-todo-planner",
   "version": "0.1.0",
-  "description": "A Todo plugin and side panel for the native DeepSeek Harness web client.",
+  "description": "A Todo planning plugin and targeted web search enhancements for DeepSeek Harness.",
   "type": "module",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skz7s/dsh-todo-planner.git"
+  },
+  "homepage": "https://github.com/skz7s/dsh-todo-planner",
+  "bugs": {
+    "url": "https://github.com/skz7s/dsh-todo-planner/issues"
+  },
   "files": [
     "src",
     "cordis.patch.yml",
@@ -13,7 +21,7 @@
     "LICENSE",
     "package.json"
   ],
-  "keywords": ["deepseek", "harness", "todo", "productivity", "plugin"],
+  "keywords": ["deepseek-harness", "dsh", "dsh-plugin", "todo", "planning", "productivity"],
   "main": "./src/plugins/dsh-todo-plugin.js",
   "exports": {
     ".": "./src/plugins/dsh-todo-plugin.js",
@@ -25,6 +33,7 @@
     "./package.json": "./package.json"
   },
   "dsh": {
+    "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
@@ -36,7 +45,6 @@
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-ui-settings-general",
-        "@deepseek-ai/dsh-client-ui-settings-models",
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-sidebar-right",
         "@deepseek-ai/dsh-api-session-controller",
@@ -45,21 +53,15 @@
     }
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "dsh": ">=0.2.0-rc.2 <0.3.0"
   },
   "scripts": {
-    "start": "node src/cli.js",
-    "dev": "node --watch src/cli.js",
-    "desktop": "electron src/desktop/main.cjs",
     "test": "node --test",
-    "check": "node --check src/desktop/main.cjs && node --check src/cli.js && node --check src/domain/todo.js && node --check src/domain/model-input.js && node --check src/storage/file-lock.js && node --check src/storage/todo-repository.js && node --check src/storage/usage-repository.js && node --check src/storage/settings-repository.js && node --check src/plugins/config.js && node --check src/plugins/todo-harness-store.js && node --check src/plugins/dsh-todo-plugin.js && node --check src/plugins/model-defaults.js && node --check src/plugins/remote-schemas.js && node --check src/plugins/todo-harness-remotes.js && node --check src/plugins/typert.host.js && node --check src/plugins/typert.remote.js && node --check src/plugins/web-search.js && node --check src/dsh/client.js && node --check src/http/server.js"
+    "check": "node --check src/domain/todo.js && node --check src/domain/model-input.js && node --check src/storage/file-lock.js && node --check src/storage/todo-repository.js && node --check src/storage/usage-repository.js && node --check src/storage/settings-repository.js && node --check src/plugins/config.js && node --check src/plugins/dsh-todo-plugin.js && node --check src/plugins/model-defaults.js && node --check src/plugins/remote-schemas.js && node --check src/plugins/dsh-todo-planner-remotes.js && node --check src/plugins/typert.host.js && node --check src/plugins/typert.remote.js && node --check src/plugins/web-search.js && node --check src/dsh/client.js"
   },
   "dependencies": {
-    "@deepseek-ai/cordis-plugin-group": "~1.0.4",
-    "@deepseek-ai/dsh": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-client-ui-settings-models": "0.2.0-rc.2",
     "@deepseek-ai/dsh-credentials": "0.2.0-rc.2",
-    "@deepseek-ai/dsh-experimental-voice-input-bundle": "0.2.0-rc.2",
     "@deepseek-ai/dsh-launch-environment": "0.2.0-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
     "@deepseek-ai/dsh-typert-protocol": "0.2.0-rc.2",
@@ -68,8 +70,5 @@
     "@earendil-works/pi-ai": "0.87.1",
     "openai": "6.40.0",
     "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "electron": "44.7.0"
   }
 }

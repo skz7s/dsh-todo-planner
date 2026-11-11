@@ -60,7 +60,6 @@ export const todoUpdatePayloadSchema = z.object({
 }).strict();
 export const todoIdSchema = z.string().min(1);
 export const settingsPatchSchema = z.object({
-  agentName: z.string().optional(),
   dailyTokenBudget: z.number().optional()
 }).strict();
 export const todoListResultSchema = z.object({
@@ -69,13 +68,10 @@ export const todoListResultSchema = z.object({
 }).strict();
 export const todoResultSchema = z.object({ todo: jsonRecordSchema }).strict();
 export const settingsResultSchema = z.object({
-  agentName: z.string(),
   dailyTokenBudget: z.number()
 }).strict();
 export const usageResultSchema = z.object({
   available: z.boolean(),
   entries: z.array(jsonRecordSchema)
 }).strict();
-export const brandMarkResultSchema = z.string().min(1);
-
 export const noResultSchema = z.void();

@@ -10,15 +10,14 @@ async function repository() {
   return new SettingsRepository(join(directory, 'settings.json')).init();
 }
 
-test('settings repository persists the assistant name and daily token budget', async () => {
+test('settings repository persists the daily token budget', async () => {
   const store = await repository();
-  assert.deepEqual(await store.get(), { agentName: 'Kre-Weave', dailyTokenBudget: 10000000 });
+  assert.deepEqual(await store.get(), { dailyTokenBudget: 10000000 });
 
-  const next = await store.update({ agentName: 'Kre', dailyTokenBudget: 500000 });
-  assert.deepEqual(next, { agentName: 'Kre', dailyTokenBudget: 500000 });
+  const next = await store.update({ dailyTokenBudget: 500000 });
+  assert.deepEqual(next, { dailyTokenBudget: 500000 });
   assert.deepEqual(JSON.parse(await readFile(store.filePath, 'utf8')), {
     version: 1,
-    agentName: 'Kre',
     dailyTokenBudget: 500000
   });
 });
@@ -26,22 +25,19 @@ test('settings repository persists the assistant name and daily token budget', a
 test('settings updates serialize and reject invalid preferences without losing the last value', async () => {
   const store = await repository();
   await Promise.all([
-    store.update({ agentName: 'Weave' }),
     store.update({ dailyTokenBudget: 120000 })
   ]);
-  assert.deepEqual(await store.get(), { agentName: 'Weave', dailyTokenBudget: 120000 });
+  assert.deepEqual(await store.get(), { dailyTokenBudget: 120000 });
 
-  await assert.rejects(() => store.update({ agentName: '  ' }), /agentName must contain/);
   await assert.rejects(() => store.update({ dailyTokenBudget: 1.5 }), /dailyTokenBudget must be an integer/);
-  assert.deepEqual(await store.get(), { agentName: 'Weave', dailyTokenBudget: 120000 });
+  assert.deepEqual(await store.get(), { dailyTokenBudget: 120000 });
 });
 
 test('settings updates from separate instances merge under the shared file lock', async () => {
   const first = await repository();
   const second = await new SettingsRepository(first.filePath).init();
   await Promise.all([
-    first.update({ agentName: 'First' }),
     second.update({ dailyTokenBudget: 250000 })
   ]);
-  assert.deepEqual(await first.get(), { agentName: 'First', dailyTokenBudget: 250000 });
+  assert.deepEqual(await first.get(), { dailyTokenBudget: 250000 });
 });

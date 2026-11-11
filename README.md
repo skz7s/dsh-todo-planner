@@ -1,61 +1,36 @@
-# Todo Harness
+# DSH Todo Planner
 
-[简体中文](README.md) | [English](README.en.md)
+[English](README.en.md)
 
-Todo Harness 是基于 DeepSeek Harness 定制的待办智能秘书。它把交办事项从聊天记录中提取出来，存入跨会话共享的任务清单，并通过专门的任务看板持续跟进，帮助你减少全局任务遗漏和遗忘。
+DSH Todo Planner 是一个原生 DeepSeek Harness 插件。它增加持久化 Todo 工具、右侧任务面板、计划联动、用量统计，并保留针对模型能力发现和网页搜索路由的优化；会话、工作区、权限和原生界面仍由 Harness 管理。
 
-![Todo Harness 完整应用界面，包含工作区与会话列表、对话区和虚构待办看板](https://raw.githubusercontent.com/skz7s/Todo-Harness/main/docs/todo-harness-demo.png)
+## 安装
 
-*完整应用界面示例，任务数据为虚构内容。*
-
-### 一键安装
-
-安装器会将程序安装到用户目录、安装运行依赖并启动服务；首次启动时会自动打开本地 Harness 页面。macOS / Linux 需要预先安装 Git、Node.js 20 或更高版本，以及 npm。Windows 安装器会通过 `winget` 自动安装缺失的 Git 或 Node.js LTS（包含 npm）；需要 Windows 的 App Installer 提供 `winget`，安装系统级组件时可能会弹出授权提示。
-
-macOS / Linux：
+在已初始化的 Harness Web Profile 中执行：
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/skz7s/Todo-Harness/main/install.sh | sh
+dsh plugin --profile web add dsh-todo-planner
+dsh --profile web
 ```
 
-Windows PowerShell：
-
-```powershell
-irm https://raw.githubusercontent.com/skz7s/Todo-Harness/main/install.ps1 | iex
-```
-
-### 从源码部署
+从源码安装：
 
 ```sh
-git clone https://github.com/skz7s/Todo-Harness.git
-cd Todo-Harness
-npm ci --omit=dev
-npm start
+git clone https://github.com/skz7s/dsh-todo-planner.git
+dsh plugin --profile web add /absolute/path/to/dsh-todo-planner
+dsh --profile web
 ```
 
-启动器会运行 Harness Web profile 和 Todo API，并在浏览器中打开本地页面。首次使用时，在 Harness 的模型设置中选择模型服务商并配置凭据，然后即可在对话中交办任务。停止服务请在终端按 `Ctrl+C`。
+Bundle 会注册 Todo Host、认证 Remote、Schedule 联动和模型路由网页搜索。Todo 数据、用量和设置默认保存在 `$DSH_HOME/todo-harness`，也可以在 Profile patch 的 `dsh-todo-planner` 配置中指定 `dataRoot`、`dataFile`、`usageFile`、`settingsFile` 和 `workspaceRoot`。数据目录沿用旧名称以兼容已有安装。
 
-默认 Web 地址使用 `http://127.0.0.1:3210`，Todo API 使用下一个端口。若端口已占用，可运行 `npm start -- --port 3220` 指定 Web 端口；对应的下一个端口也必须空闲。运行 `npm start -- --no-open` 可在不自动打开浏览器的情况下启动，并打印本地 URL。
-
-### 作为 Harness 插件
-
-已有 DeepSeek Harness 的用户可以只安装 Todo bundle，不使用独立启动器。安装方式和数据目录说明见 [插件版指南](docs/plugin.md)。
-
-### 数据、升级与备份
-
-Todo 数据、用量和应用设置默认保存在 `~/.todo-harness`（Windows：`%USERPROFILE%\.todo-harness`），Harness profile 和浏览器认证数据默认位于其 `dsh` 子目录。备份前先停止服务，再备份整个数据目录。更换设备时恢复该目录即可保留本地任务与 Harness profile。
-
-一键安装器默认将程序放在 `~/.local/share/todo-harness/app`（Windows 为 `%LOCALAPPDATA%\TodoHarness\app`），运行数据仍保存在用户数据目录。升级前先停止正在运行的 Todo Harness，再运行对应的一键安装命令更新干净的安装目录；如果目录中有本地修改，安装器会停止并要求先自行处理，避免覆盖修改。
-
-也可以通过环境变量调整路径：`TODO_HARNESS_INSTALL_DIR` 设置安装目录，`TODO_HARNESS_DATA_DIR` 设置 Todo 数据目录，`DSH_HOME` 设置 Harness profile 目录，`TODO_HARNESS_WORKSPACE_DIR` 设置 agent 工作区。默认 agent 工作区是安装目录。Todo Harness 只监听本机 loopback 地址，不应直接暴露到公网。
-
-项目固定依赖 DeepSeek Harness `0.2.0-rc.2`。
-
-### 开发与许可
+## 开发
 
 ```sh
+npm ci
 npm test
 npm run check
 ```
 
-Apache-2.0，详见 [LICENSE](LICENSE)。架构概览见 [docs/architecture.md](docs/architecture.md)。
+项目固定依赖 DeepSeek Harness `0.2.0-rc.2`。插件安装、卸载和数据备份说明见 [docs/plugin.md](docs/plugin.md)，架构说明见 [docs/architecture.md](docs/architecture.md)。
+
+Apache-2.0，详见 [LICENSE](LICENSE)。

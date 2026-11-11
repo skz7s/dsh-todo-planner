@@ -5,15 +5,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { apply, name } from '../src/plugins/dsh-todo-plugin.js';
+import { TodoPlannerRemotes } from '../src/plugins/dsh-todo-planner-remotes.js';
 import { TYPERT } from '../src/plugins/typert.host.js';
 import { TYPERT_REMOTE } from '../src/plugins/typert.remote.js';
 
 async function fixture() {
-  const directory = await mkdtemp(join(tmpdir(), 'todo-harness-plugin-'));
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-todo-planner-plugin-'));
   const registrations = [];
   const events = [];
   const sections = [];
   const workspaceUpdates = [];
+  const provided = {};
   const dataFile = join(directory, 'todos.json');
   const usageFile = join(directory, 'usage.json');
   const workspaceRoot = directory;
@@ -32,21 +34,22 @@ async function fixture() {
         };
       }
     },
+    provide: (key, value) => { provided[key] = value; },
     on: (event, listener) => events.push({ event, listener })
   }, {
     dataFile,
     usageFile,
     workspaceRoot
   });
-  return { registrations, sections, events, dataFile, usageFile, workspaceRoot, workspaceUpdates };
+  return { registrations, sections, events, dataFile, usageFile, workspaceRoot, workspaceUpdates, provided };
 }
 
 test('DSH plugin registers durable Todo tools and per-turn maintenance guidance', async () => {
   const { registrations, sections, dataFile, workspaceRoot, workspaceUpdates } = await fixture();
-  assert.equal(name, 'todo-harness');
+  assert.equal(name, 'dsh-todo-planner');
   assert.deepEqual(workspaceUpdates, [
-    { action: 'create', path: workspaceRoot, title: 'Todo-Harness' },
-    { action: 'rename', title: 'Todo-Harness' }
+    { action: 'create', path: workspaceRoot, title: 'DSH Todo Planner' },
+    { action: 'rename', title: 'DSH Todo Planner' }
   ]);
   assert.deepEqual(registrations.map((tool) => tool.name), [
     'todo_list', 'todo_create', 'todo_update', 'todo_complete', 'todo_delete', 'todo_clear_completed', 'todo_stats'
@@ -57,7 +60,7 @@ test('DSH plugin registers durable Todo tools and per-turn maintenance guidance'
   assert.match(prompt, /first and foremost the user's secretary and planning assistant/);
   assert.match(prompt, /before answering, executing, or calling any other tool, call todo_list/);
   assert.match(prompt, /Treat progress and completion statements as reports, not commands/);
-  assert.match(prompt, /今天完成了 Todo-Harness 的开发/);
+  assert.match(prompt, /今天完成了 DSH Todo Planner 的开发/);
   assert.match(prompt, /Never start X again from that report alone/);
   assert.match(prompt, /Do not begin execution unless the user explicitly directs you/);
   assert.match(prompt, /Mark it in_progress before execution/);
@@ -163,19 +166,34 @@ test('starting a future Todo through Harness persists its actual start and inclu
   assert.deepEqual(Array.from(select([saved], 'today', false, now), (todo) => todo.id), [planned.id]);
 });
 
+test('authenticated Todo Remote uses the Host repositories directly', async () => {
+  const { provided } = await fixture();
+  const remote = Object.create(TodoPlannerRemotes.prototype);
+  remote.ctx = {
+    ...provided,
+    schedule: { create: async () => ({ id: 'schedule-1' }) },
+    agentDefaultModel: { currentSelection: () => ({ provider: 'test', model: 'model' }), saveSelection: async () => {} }
+  };
+  const created = await remote.createTodo({ title: 'Remote task' });
+  assert.equal(created.todo.title, 'Remote task');
+  assert.deepEqual((await remote.listTodos({})).todos.map((todo) => todo.id), [created.todo.id]);
+  assert.equal((await remote.updateTodo({ id: created.todo.id, patch: { status: 'in_progress' } })).todo.status, 'in_progress');
+  assert.equal((await remote.deleteTodo(created.todo.id)).todo.id, created.todo.id);
+});
+
 test('Typert host schema names are local segments while Remote codecs use package-qualified symbols', () => {
   assert.deepEqual(TYPERT.schemas.map((schema) => schema.name), [
     'CreateSchedulePayload', 'ScheduleCreateRequest', 'ScheduleRecord', 'ModelSelection',
     'TodoFilters', 'TodoInput', 'TodoUpdatePayload', 'TodoId', 'SettingsPatch',
-    'TodoListResult', 'TodoResult', 'SettingsResult', 'UsageResult', 'BrandMarkResult',
+    'TodoListResult', 'TodoResult', 'SettingsResult', 'UsageResult',
     'NoResult'
   ]);
   assert.ok(TYPERT.schemas.every((schema) => !schema.name.includes('#')));
   const createSchedule = TYPERT_REMOTE.descriptors.find((descriptor) => descriptor.method === 'createSchedule');
-  assert.equal(createSchedule.parameters[0].codec.typeSymbol, 'todo-harness#CreateSchedulePayload');
+  assert.equal(createSchedule.parameters[0].codec.typeSymbol, 'dsh-todo-planner#CreateSchedulePayload');
   const listTodos = TYPERT_REMOTE.descriptors.find((descriptor) => descriptor.method === 'listTodos');
-  assert.equal(listTodos.parameters[0].codec.typeSymbol, 'todo-harness#TodoFilters');
-  assert.equal(listTodos.result.typeSymbol, 'todo-harness#todoHarness/listTodos:result');
+  assert.equal(listTodos.parameters[0].codec.typeSymbol, 'dsh-todo-planner#TodoFilters');
+  assert.equal(listTodos.result.typeSymbol, 'dsh-todo-planner#todoPlanner/listTodos:result');
 });
 
 test('DSH client file registers through Harness native module loader', async () => {
@@ -186,186 +204,59 @@ test('DSH client file registers through Harness native module loader', async () 
   });
 
   assert.equal(registrations.length, 1);
-  assert.equal(registrations[0].id, 'todo-harness');
+  assert.equal(registrations[0].id, 'dsh-todo-planner');
   const react = { createElement() {}, useCallback() {}, useEffect() {}, useState() {} };
   const client = registrations[0].factory((specifier) => specifier === 'react' ? react : {});
-  assert.deepEqual([...client.inject], ['slots', 'sidebarRight', 'sidebarRightTabs', 'sessions', 'workspaces', 'uiWorkspace', 'remote', 'remote.settings', 'remote.session', 'remote.schedule', 'pluginNavigation', 'configForms', 'settingsSchema']);
+  assert.deepEqual([...client.inject], ['slots', 'sidebarRight', 'sidebarRightTabs', 'sessions', 'workspaces', 'uiWorkspace', 'remote', 'remote.session', 'remote.schedule']);
   assert.equal(typeof client.apply, 'function');
 });
 
-test('DSH client brand slots shadow the native brand at a lower priority', async () => {
+test('DSH client leaves native Harness branding and settings chrome untouched', async () => {
   const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
-  assert.match(source, /name: 'sidebar\.brand\.mark',\s+id: 'todo-harness:brand-mark',\s+priority: -1/);
-  assert.match(source, /name: 'sidebar\.brand\.name',\s+id: 'todo-harness:brand-name',\s+priority: -1/);
+  assert.doesNotMatch(source, /sidebar\.brand\.|conversation\.hero\.brand|document\.title/);
+  assert.match(source, /name: 'settings\.general\.item',\s+id: 'dsh-todo-planner-daily-token-budget'/);
+  assert.match(source, /name: 'sidebar\.footer\.action',\s+id: 'dsh-todo-planner:daily-token-usage',\s+order: 20\s+\}, TokenUsageSidebarItem\)/);
+  assert.doesNotMatch(source, /settings\.section.*dsh-todo-planner-agent/);
 });
 
 test('DSH client keeps native Chinese and English locales without conflicting registrations', async () => {
   const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
 
   assert.doesNotMatch(source, /locale\.(?:addLanguage|register|setLocale)/);
-  assert.match(source, /\['选择一个工作区开始', '正在 Todo-Harness 工作区开始新会话'\]/);
-  assert.match(source, /\['Choose a workspace to start', 'Starting a new session in the Todo-Harness workspace'\]/);
+  assert.doesNotMatch(source, /正在 DSH Todo Planner 工作区开始新会话|Starting a new session in the DSH Todo Planner workspace/);
   assert.doesNotMatch(source, /setLocale\(['"]zh-CN['"]\)/);
   assert.match(source, /grid-template-columns:auto minmax\(0,1fr\) minmax\(0,33\.333vw\)!important/);
   assert.match(source, /width:33\.333vw!important/);
-  assert.match(source, /data-todo-harness-model-url/);
+  assert.match(source, /data-dsh-todo-planner-model-url/);
   assert.match(source, /grid-template-rows:minmax\(0,1fr\)!important/);
   assert.match(source, /sidebarRight\.openTab\(TODO_TAB_KIND\)/);
   assert.match(source, /sidebarRight\.toggleExpanded\(\)/);
-  assert.match(source, /data-todo-harness-mobile-todo-open/);
+  assert.match(source, /data-dsh-todo-planner-mobile-todo-open/);
   assert.match(source, /@media\(max-width:767px\)/);
   assert.match(source, /data-sidebar-right-expand\]\{display:none!important\}/);
-  assert.match(source, /\.todo-harness-expand-button:hover:not\(:disabled\),\.todo-harness-mobile-sidebar-toggle:hover:not\(:disabled\)\{background:transparent!important/);
+  assert.match(source, /\.dsh-todo-planner-expand-button:hover:not\(:disabled\)\{background:transparent!important/);
   assert.doesNotMatch(source, /height:min\(52vh,440px\)!important/);
-  assert.match(source, /installVoiceSetupTrigger/);
-  assert.match(source, /todo-harness-voice-setup/);
-  assert.match(source, /runtime\.speech\.prepare/);
 });
 
-test('voice download progress uses current resource bytes and keeps unknown totals indeterminate', async () => {
-  const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
-  const helpers = source.slice(source.indexOf('function voiceByteText'), source.indexOf('function voiceStepLabel'));
-  const progress = runInNewContext(`${helpers}; voiceDownloadProgress`);
-
-  const known = progress({ phase: 'downloading', completedBytes: 234e6, totalBytes: 1e9 });
-  assert.ok(Math.abs(known.percent - 23.4) < 1e-9);
-  assert.equal(known.bytes, '234.0 MB / 1.0 GB');
-  assert.equal(progress({ phase: 'downloading', completedBytes: 8e6 }).percent, undefined);
-  assert.equal(progress({ phase: 'downloading', completedBytes: 8e6 }).bytes, '已下载 8.0 MB');
-  assert.equal(progress({ phase: 'downloading', completedBytes: 0, totalBytes: 10 }).percent, 0);
-  assert.equal(progress({ phase: 'downloading', completedBytes: 11, totalBytes: 10 }).percent, 100);
-  for (const totalBytes of [0, -1, Infinity, NaN]) {
-    assert.equal(progress({ phase: 'downloading', completedBytes: 8e6, totalBytes }).percent, undefined);
-  }
-  assert.equal(progress({ phase: 'downloading', completedBytes: -1, totalBytes: 10 }).percent, undefined);
-  assert.equal(progress({ phase: 'loading', completedBytes: 10, totalBytes: 10 }), undefined);
+test('plugin bundle includes the model-backed web search provider', async () => {
+  const source = await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8');
+  assert.match(source, /id: dsh-todo-planner-web-search\s+name: 'dsh-todo-planner\/web-search'/);
+  assert.match(source, /id: web\s+config:\s+searchProvider: 'dsh-todo-planner-auto'/);
+  assert.match(source, /fetchProvider: 'http'/);
 });
 
-test('thinking copy preserves the live duration and animated ellipsis', async () => {
-  const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
-  const registrations = [];
-  const textNodes = [
-    { nodeType: 3, nodeValue: '深度求索中，用时 12秒 ···' },
-    { nodeType: 3, nodeValue: '深度求索中' },
-    { nodeType: 3, nodeValue: '深度求索正在思考' },
-    { nodeType: 3, nodeValue: ' DeepSeek is thinking for 3 sec ' }
-  ];
-  const shimmerAttributes = new Map([['data-shimmer-text', '深度求索中，用时 12秒 ···']]);
-  const shimmerText = {
-    nodeType: 1,
-    matches: (selector) => selector.includes('[data-shimmer-text]') && shimmerAttributes.has('data-shimmer-text'),
-    querySelectorAll: () => [],
-    getAttribute: (attribute) => shimmerAttributes.get(attribute) ?? null,
-    setAttribute: (attribute, value) => shimmerAttributes.set(attribute, value)
-  };
-  let nativeObserver;
-  const body = {
-    nodeType: 1,
-    matches: () => false,
-    querySelectorAll: (selector) => selector.includes('[data-shimmer-text]') ? [shimmerText] : []
-  };
-  const document = {
-    body,
-    createTreeWalker: () => {
-      let index = 0;
-      return { nextNode: () => textNodes[index++] ?? null };
-    }
-  };
-  class TestMutationObserver {
-    constructor(callback) { this.callback = callback; nativeObserver = this; }
-    observe(_target, options) { this.options = options; }
-    disconnect() {}
-  }
-  const window = { __ModuleLoader__: { load: (registration) => registrations.push(registration) } };
-  runInNewContext(source, {
-    window,
-    document,
-    MutationObserver: TestMutationObserver,
-    Node: { ELEMENT_NODE: 1, TEXT_NODE: 3 },
-    NodeFilter: { SHOW_TEXT: 4 }
-  });
-  const react = { createElement() {}, useCallback() {}, useEffect() {}, useState() {} };
-  const client = registrations[0].factory((specifier) => specifier === 'react' ? react : {});
-  const effects = [];
-  client.apply({ effect: (callback, name) => effects.push({ callback, name }) });
-  effects.find((effect) => effect.name === 'todo-harness: native copy observer').callback();
-
-  assert.equal(textNodes[0].nodeValue, '思考中，用时 12秒 ···');
-  assert.equal(textNodes[1].nodeValue, '思考中');
-  assert.equal(textNodes[2].nodeValue, '思考中');
-  assert.equal(textNodes[3].nodeValue, ' Thinking… for 3 sec ');
-  assert.equal(shimmerAttributes.get('data-shimmer-text'), '思考中，用时 12秒 ···');
-  assert.ok(nativeObserver.options.attributeFilter.includes('data-shimmer-text'));
-  shimmerText.setAttribute('data-shimmer-text', '深度求索中，用时 13秒 ···');
-  nativeObserver.callback([{ type: 'attributes', target: shimmerText }]);
-  assert.equal(shimmerAttributes.get('data-shimmer-text'), '思考中，用时 13秒 ···');
-  assert.match(source, /\[data-chat-running\] span\[aria-hidden="true"\]:has\(> svg\)::before\{box-sizing:border-box;display:block/);
-  assert.match(source, /@keyframes todo-harness-thinking-spin/);
-  assert.match(source, /prefers-reduced-motion:reduce/);
+test('package metadata exposes the Host bundle and Web client to dsh discovery', async () => {
+  const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(packageJson.name, 'dsh-todo-planner');
+  assert.equal(packageJson.main, './src/plugins/dsh-todo-plugin.js');
+  assert.deepEqual(packageJson.dsh.bundle, { patch: './cordis.patch.yml' });
+  assert.equal(packageJson.dsh.client.platform, 'web');
+  assert.ok(packageJson.dsh.client.inject.includes('@deepseek-ai/dsh-api-remotes'));
 });
 
-test('custom provider thinking levels can be configured and first-run provider onboarding stays enabled', async () => {
+test('native thinking copy and loading affordance are left to Harness', async () => {
   const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
-
-  assert.match(source, /getModelReasoningSettingsTarget\(ctx, selected\.group\.id, selected\.model\.id\)/);
-  assert.match(source, /remote\.settings\.mutate\('llm-pi-ai'/);
-  assert.match(source, /reasoningEfforts/);
-  assert.match(source, /此模型未声明思考等级/);
-  assert.doesNotMatch(source, /dismissPreviewNotice|welcomeNoticeVersion/);
-  assert.match(source, /推荐/);
-});
-
-test('reasoning controls use declared capabilities and preserve provider wire mappings', async () => {
-  const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
-  const helpers = source.slice(source.indexOf('function reasoningEffortMapping'), source.indexOf('function modelSelectionKey'));
-  const { mapping, suggested } = runInNewContext(`${helpers}; ({ mapping: reasoningEffortMapping, suggested: suggestedReasoningLevels })`);
-  const normalize = (value) => JSON.parse(JSON.stringify(value));
-  assert.doesNotMatch(source, /ConversationReasoningControl|todo-harness:conversation-reasoning/);
-  const target = { api: 'openai-responses', model: 'gpt-6.1-sol', levels: [], disabled: false };
-  assert.deepEqual(normalize(suggested(target)), ['low', 'medium', 'high']);
-  assert.deepEqual(normalize(suggested({ ...target, levels: ['high', 'xhigh'] })), ['high', 'xhigh']);
-  assert.deepEqual(normalize(suggested({ ...target, disabled: true })), []);
-  assert.deepEqual(normalize(suggested({ ...target, model: 'gpt-4.1' })), []);
-  assert.deepEqual(normalize(mapping(['off', 'low', 'high'], { off: 'none', high: 'enabled' })), { off: 'none', low: 'low', high: 'enabled' });
-});
-
-test('reasoning configuration targets only the selected provider model and uses its current revision', async () => {
-  const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
-  const helpers = source.slice(source.indexOf('const REASONING_LEVELS'), source.indexOf('function ProviderSetupOnboarding'));
-  const getTarget = runInNewContext(`${helpers}; getModelReasoningSettingsTarget`);
-  const providers = {
-    custom: { api: 'openai-responses', models: [{ id: 'gpt-4.1' }, { id: 'gpt-6.1-sol', reasoningEfforts: { high: 'enabled' } }] },
-    official: { api: 'openai-completions', modelOverrides: { 'o3-mini': { reasoningEfforts: false } } }
-  };
-  const ctx = {
-    configForms: { describe: () => ({ ensure: async () => {}, getSnapshot: () => ({ view: { writable: true, namespaces: [{ ns: 'llm-pi-ai', user: { providers }, revision: 7 }] } }) }) },
-    settingsSchema: { getPath: (root, path) => path.reduce((value, key) => value?.[key], root) }
-  };
-  const target = await getTarget(ctx, 'custom', 'gpt-6.1-sol');
-  assert.deepEqual([...target.path], ['providers', 'custom', 'models', '1', 'reasoningEfforts']);
-  assert.equal(target.revision, 7);
-  assert.equal(target.efforts.high, 'enabled');
-  assert.equal(await getTarget(ctx, 'custom', 'missing'), null);
-  const disabled = await getTarget(ctx, 'official', 'o3-mini');
-  assert.deepEqual([...disabled.path], ['providers', 'official', 'modelOverrides', 'o3-mini', 'reasoningEfforts']);
-  assert.equal(disabled.disabled, true);
-});
-
-test('agent model settings can render while its catalog and provider configuration are still loading', async () => {
-  const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
-  const helpers = source.slice(source.indexOf('function ReasoningSettingsRow'), source.indexOf('function modelSelectionKey'));
-  const create = (type, props, ...children) => ({ type, props, children });
-  const render = runInNewContext(`${helpers}; ReasoningSettingsRow`, {
-    React: { Fragment: 'fragment' }, h: create, Button: 'button',
-    useState: (value) => [value, () => {}], useRef: (value) => ({ current: value }),
-    useCallback: (value) => value, useEffect: () => {}, runtimeContext: {}
-  });
-  const tree = render();
-  const row = tree.children[0];
-  const modelSelect = row.children[0].children[1];
-  assert.equal(modelSelect.props.disabled, true);
-  assert.equal(modelSelect.props.value, '');
-  assert.equal(row.children[1].children[1].children[0].props.disabled, true);
+  assert.doesNotMatch(source, /native copy observer|function installNativeCopyObserver|DeepSeek is thinking|dsh-todo-planner-thinking-spin|data-chat-running/);
 });
 
 test('todo action icons expose tooltips and keep session dispatch controls', async () => {
@@ -620,36 +511,6 @@ test('summary shows only remaining tasks and effort while loading and errors sta
   assert.deepEqual(selections, [['2026-11-01'], ['2026-10-30']]);
 });
 
-test('quick requests restore the original actions and preserve existing composer text', async () => {
-  const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
-  const render = runInNewContext(`${source.slice(source.indexOf('function QuickRequests'), source.indexOf('function TodoPanelTitle'))}; QuickRequests`, {
-    h: (type, props, ...children) => ({ type, props, children }),
-    useRef: () => ({ current: null }), useState: () => [null, () => {}], useEffect: () => {},
-    Button: 'button', IconCheckCircleOutlineRegular: 'icon', IconClockOutlineRegular: 'icon', IconEditOutlineRegular: 'icon'
-  });
-  const writes = [];
-  const inputActions = { setDraft: (text) => writes.push(['set', text]), captureInsertion: () => 'selection', insertText: (text, span) => writes.push(['insert', text, span]) };
-  const actions = (input) => render({ session: { running: false }, inputActions, input }).children[0].children[0];
-  const empty = actions({ phase: 'plain', draft: '' });
-  assert.deepEqual(Array.from(empty, (button) => button.children[0]), ['梳理今日待办', '统计本周工作', '写周报']);
-  empty[0].props.onClick();
-  assert.equal(writes[0][0], 'set');
-  assert.match(writes[0][1], /先读取我的待办和计划/);
-  actions({ phase: 'plain', draft: 'Existing draft' })[1].props.onClick();
-  assert.equal(writes[1][0], 'insert');
-  assert.equal(writes[1][2], 'selection');
-  for (const state of [
-    { session: { running: true }, input: { phase: 'plain' } },
-    { session: { running: false, awaitingFirstTurn: true }, input: { phase: 'plain' } },
-    { session: { running: false }, input: { phase: 'submitting' } }
-  ]) {
-    const hidden = render({ inputActions, ...state });
-    assert.equal(hidden.props.hidden, true);
-    assert.equal(hidden.children[0], null);
-  }
-  assert.equal(actions({ phase: 'plain', draft: '' }).length, 3);
-});
-
 test('plan groups all stay expanded and a selected empty date remains visible', async () => {
   const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
   const helper = source.slice(source.indexOf('function renderPlanGroups'), source.indexOf('function compareTimeline'));
@@ -702,7 +563,7 @@ test('dispatching a Todo uses the current ClientSessions create contract and car
 test('dispatch model defaults to the last supported model and falls back to the first catalog model', async () => {
   const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
   const start = source.indexOf('function modelSelectionKey');
-  const end = source.indexOf('const REASONING_LEVELS', start);
+  const end = source.indexOf('function DispatchModelSelect', start);
   const helper = runInNewContext(`(() => { ${source.slice(start, end)}; return buildDispatchModelChoices; })()`);
   const catalog = {
     default: { provider: 'gateway', model: 'reasoning-model', reasoningEffort: 'high' },
@@ -763,13 +624,12 @@ test('dispatch uses the selected directory and applies reasoning before sending 
     },
     setDispatchingId: (id) => calls.push(['busy', id]),
     setNotice: () => {},
-    waitForTodoHarnessRemote: async () => {},
-    todoHarnessRemote: () => ({ setDefaultModel: async () => ({ ok: true }) }),
+    waitForTodoPlannerRemote: async () => {},
+    callTodoPlannerRemote: async (method, args) => { calls.push(['remote', method, normalize(args)]); return { todo: args[0]?.patch ? { id: args[0].id } : undefined }; },
+    todoPlannerRemote: () => ({ setDefaultModel: async () => ({ ok: true }) }),
     crypto: { randomUUID: () => 'request-id' },
     priorityLabel: () => '普通',
     formatMinutes: () => '',
-    apiUrl: (path) => path,
-    fetch: async (_path, request) => { calls.push(['patch', JSON.parse(request.body)]); return { ok: true }; },
     refresh: async () => {},
     rememberDispatchOptions: (key, options) => calls.push(['remember', key, normalize(options)]),
     openHarnessSession: (ctx, id) => ctx.uiWorkspace.openSession(id)
@@ -784,7 +644,7 @@ test('dispatch uses the selected directory and applies reasoning before sending 
   assert.match(prompt.content[0].text, /工作目录：\/projects\/任务目录/);
   assert.match(prompt.content[0].text, /列出产物的完整路径/);
   const dispatchOptions = { modelSelection: selection, directoryMode: 'choose', directoryPath: '/projects/任务目录' };
-  assert.deepEqual(calls.find(([kind]) => kind === 'patch')[1], { sessionId: 'new-session', dispatchOptions, status: 'in_progress' });
+  assert.deepEqual(calls.find(([kind]) => kind === 'remote' && kind !== 'busy').slice(1), ['updateTodo', [{ id: 'todo-id', patch: { sessionId: 'new-session', dispatchOptions, status: 'in_progress' } }]]);
   assert.deepEqual(calls.find(([kind]) => kind === 'remember'), ['remember', 'todo-id', dispatchOptions]);
   assert.deepEqual(calls.at(-1), ['busy', null]);
 
@@ -812,7 +672,7 @@ test('opening a linked session reveals the conversation from the mobile Todo ove
   let expanded = true;
   const ctx = { uiWorkspace: { openSession: (id) => { calls.push(['open', id]); frame = null; } }, sidebarRight: { isExpanded: () => expanded, toggleExpanded: () => calls.push(['collapse']) } };
   open(ctx, 'linked-session');
-  assert.deepEqual(calls, [['open', 'linked-session'], ['remove', 'data-todo-harness-mobile-todo-open'], ['collapse'], ['event', false]]);
+  assert.deepEqual(calls, [['open', 'linked-session'], ['remove', 'data-dsh-todo-planner-mobile-todo-open'], ['collapse'], ['event', false]]);
   frame = { removeAttribute: () => {} };
   expanded = false;
   calls.length = 0;
@@ -832,7 +692,7 @@ test('dispatch options survive client reload and unavailable browser storage', a
   load().save('task-id', options);
   assert.deepEqual(JSON.parse(JSON.stringify(load().read('task-id'))), options);
   assert.equal(load().read('other-task'), null);
-  storage.set('todo-harness:dispatch:invalid', 'bad json');
+  storage.set('dsh-todo-planner:dispatch:invalid', 'bad json');
   assert.equal(load().read('invalid'), null);
   window.localStorage.setItem = () => { throw new Error('disabled'); };
   const cache = load();
@@ -913,13 +773,6 @@ test('dispatch confirmation requires an explicit directory choice and keeps sett
   assert.equal(calls[1][1], '/selected');
 });
 
-test('launcher does not override saved model selection with its unregistered deepseek route', async () => {
-  const source = await readFile(new URL('../src/cli.js', import.meta.url), 'utf8');
-
-  assert.doesNotMatch(source, /id: 'agent-default-model', config: \{ provider: 'deepseek'/);
-  assert.match(source, /\{ id: 'llm-deepseek', disabled: true \}/);
-});
-
 test('DSH client retries model discovery with the URL entered after a failure', async () => {
   const source = await readFile(new URL('../src/dsh/client.js', import.meta.url), 'utf8');
   const registrations = [];
@@ -939,21 +792,21 @@ test('DSH client retries model discovery with the URL entered after a failure', 
       insertionPosition = position;
       field = element;
     },
-    querySelector: (selector) => selector === '[data-todo-harness-model-url]' ? createdInput : null
+    querySelector: (selector) => selector === '[data-dsh-todo-planner-model-url]' ? createdInput : null
   };
   const document = {
     body: {},
     activeElement: null,
     addEventListener() {},
     removeEventListener() {},
-    querySelectorAll: (selector) => selector === '.zGbnIq_modelCatalog' ? [catalog] : selector === '[data-todo-harness-model-url-field]' && field ? [field] : [],
+    querySelectorAll: (selector) => selector === '.zGbnIq_modelCatalog' ? [catalog] : selector === '[data-dsh-todo-planner-model-url-field]' && field ? [field] : [],
     createElement: (tagName) => {
       const element = {
         tagName,
         dataset: {},
         children: [],
-        matches: (selector) => selector === '[data-todo-harness-model-url-field]' && element.dataset.todoHarnessModelUrlField === 'true',
-        querySelector: (selector) => selector === '[data-todo-harness-model-url]' ? createdInput : null,
+        matches: (selector) => selector === '[data-dsh-todo-planner-model-url-field]' && element.dataset.dshTodoPlannerModelUrlField === 'true',
+        querySelector: (selector) => selector === '[data-dsh-todo-planner-model-url]' ? createdInput : null,
         append(...children) { this.children.push(...children); },
         remove() {}
       };
@@ -982,8 +835,8 @@ test('DSH client retries model discovery with the URL entered after a failure', 
   const client = registrations[0].factory((specifier) => specifier === 'react' ? react : {});
   const effects = [];
   client.apply({ effect: (callback, name) => effects.push({ callback, name }) });
-  effects.find((effect) => effect.name === 'todo-harness: model discovery URL input').callback();
-  effects.find((effect) => effect.name === 'todo-harness: model discovery URL override').callback();
+  effects.find((effect) => effect.name === 'dsh-todo-planner: model discovery URL input').callback();
+  effects.find((effect) => effect.name === 'dsh-todo-planner: model discovery URL override').callback();
 
   const message = {
     type: 'client-request',

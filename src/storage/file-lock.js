@@ -5,10 +5,8 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_STALE_MS = 60_000;
 
 /**
- * Serialize mutations that may come from the standalone API and a separate
- * Harness Host process. Directory creation is atomic on the supported local
- * filesystems, while the stale check prevents a crashed process from blocking
- * the application forever.
+ * Serialize mutations from the Harness Host and concurrent profile work. The
+ * stale check prevents a crashed process from blocking the plugin forever.
  */
 export async function withFileLock(filePath, operation, { timeoutMs = DEFAULT_TIMEOUT_MS, staleMs = DEFAULT_STALE_MS } = {}) {
   if (typeof operation !== 'function') throw new TypeError('file lock operation must be a function');

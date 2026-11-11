@@ -1,14 +1,13 @@
 import { defineTool } from '@deepseek-ai/dsh-tools';
-import { TodoHarnessRemotes } from './todo-harness-remotes.js';
+import { TodoPlannerRemotes } from './dsh-todo-planner-remotes.js';
 import { TODO_PRIORITIES, TODO_STATUSES } from '../domain/todo.js';
 import { TodoRepository } from '../storage/todo-repository.js';
 import { UsageRepository } from '../storage/usage-repository.js';
 import { SettingsRepository } from '../storage/settings-repository.js';
-import { resolveTodoHarnessConfig } from './config.js';
-import { createTodoHarnessStore } from './todo-harness-store.js';
+import { resolveTodoPlannerConfig } from './config.js';
 import { installModelDefaults } from './model-defaults.js';
 
-export const name = 'todo-harness';
+export const name = 'dsh-todo-planner';
 export const inject = ['tools', 'systemPrompt', 'workspaceRegistry'];
 
 const todoFields = {
@@ -25,28 +24,33 @@ const todoFields = {
 };
 
 export async function apply(ctx, config = {}) {
-  const resolvedConfig = resolveTodoHarnessConfig(config);
-  const workspace = await ctx.workspaceRegistry.create(resolvedConfig.workspaceRoot, 'Todo-Harness');
-  if (workspace.title !== 'Todo-Harness') await workspace.setTitle('Todo-Harness');
+  const resolvedConfig = resolveTodoPlannerConfig(config);
+  const workspace = await ctx.workspaceRegistry.create(resolvedConfig.workspaceRoot, 'DSH Todo Planner');
+  if (workspace.title !== 'DSH Todo Planner') await workspace.setTitle('DSH Todo Planner');
   const repository = await new TodoRepository(resolvedConfig.dataFile).init();
   const usageRepository = await new UsageRepository(resolvedConfig.usageFile).init();
   const settingsRepository = await new SettingsRepository(resolvedConfig.settingsFile).init();
-  ctx.provide?.('todoHarnessStore', createTodoHarnessStore({ repository, usageRepository, settingsRepository }));
+  // Keep the persistence services in the Harness graph. The plugin Remote
+  // consumes these services directly; there is no second loopback API or
+  // duplicate data adapter between Harness and the Todo repositories.
+  ctx.provide?.('todoRepository', repository);
+  ctx.provide?.('usageRepository', usageRepository);
+  ctx.provide?.('settingsRepository', settingsRepository);
 
-  if (typeof ctx.plugin === 'function') ctx.plugin(TodoHarnessRemotes);
+  if (typeof ctx.plugin === 'function') ctx.plugin(TodoPlannerRemotes);
   ctx.inject?.(['llm', 'settings'], (scope) => {
-    scope.effect(() => installModelDefaults(scope), 'todo-harness: model capability defaults');
+    scope.effect(() => installModelDefaults(scope), 'dsh-todo-planner: model capability defaults');
   });
 
   for (const tool of createTodoTools(repository)) ctx.tools.register(tool);
 
   ctx.systemPrompt.section({
-    name: 'todo-harness:turn-reconciliation',
+    name: 'dsh-todo-planner:turn-reconciliation',
     order: ctx.systemPrompt.getSectionOrder('HARNESS_IDENTITY') + 10,
     text: `Primary role and intent policy:
 - You are first and foremost the user's secretary and planning assistant. Planning, Todo maintenance, prioritization, and clear status are your primary duties; execution is a secondary capability and is never the default.
 - At the beginning of every user turn, before answering, executing, or calling any other tool, call todo_list and read the latest saved Todo state.
-- Treat progress and completion statements as reports, not commands. For example, "I finished X today", "X is done", "我今天完成了 X", and "今天完成了 Todo-Harness 的开发" mean reconcile the matching Todo; when completion is clear, mark it done and confirm it. Never start X again from that report alone.
+- Treat progress and completion statements as reports, not commands. For example, "I finished X today", "X is done", "我今天完成了 X", and "今天完成了 DSH Todo Planner 的开发" mean reconcile the matching Todo; when completion is clear, mark it done and confirm it. Never start X again from that report alone.
 - Treat goals, plans, and reminders such as "I need to finish X today" as planning intent: create or update the relevant Todo/Plan and help schedule it. Do not begin execution unless the user explicitly directs you to do the work.
 - Execute work only after an explicit action request such as "implement X", "start X now", or "请实现 X". Even then, call todo_list first and reconcile the matching Todo. Mark it in_progress before execution; if no matching Todo exists and the work is substantive, create it and mark it in_progress before acting.
 - When intent is ambiguous between reporting, planning, and execution, do not assume execution. Reconcile the Todo first and ask a concise clarifying question when needed.
@@ -72,7 +76,7 @@ Persistent Todo maintenance rules:
 
   ctx.on('session/event', (_session, event) => {
     if (event?.type === 'web/model-search-usage') {
-      usageRepository.recordUsage(event.data).catch((error) => console.error('[todo-harness] search usage record failed', error));
+      usageRepository.recordUsage(event.data).catch((error) => console.error('[dsh-todo-planner] search usage record failed', error));
       return;
     }
     if (event?.type !== 'assistant/message' || !event.data?.usage) return;
@@ -86,7 +90,7 @@ Persistent Todo maintenance rules:
       totalTokens: usage.totalTokens,
       cacheReadTokens: usage.cacheReadTokens,
       cacheWriteTokens: usage.cacheWriteTokens
-    }).catch((error) => console.error('[todo-harness] usage record failed', error));
+    }).catch((error) => console.error('[dsh-todo-planner] usage record failed', error));
   });
 
 }

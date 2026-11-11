@@ -1,12 +1,19 @@
-# The plugin bundle inserts only the shared Todo services. Product-specific
-# defaults and native UI choices stay in the standalone profile overlay.
+# The bundle extends an existing Harness profile with Todo services and the
+# targeted model-backed web search provider. Native client chrome stays owned
+# by Harness.
 - insert:
-    - id: todo-harness-schedule
+    - id: dsh-todo-planner-schedule
       name: '@deepseek-ai/dsh-schedule'
       disabled: !!js "[...ctx.loader.entries()].some(entry => entry.options.id === 'schedule')"
-    - id: todo-harness
-      name: 'todo-harness'
+    - id: dsh-todo-planner
+      name: 'dsh-todo-planner'
       config: {}
+    - id: dsh-todo-planner-web-search
+      name: 'dsh-todo-planner/web-search'
+- id: web
+  config:
+    searchProvider: 'dsh-todo-planner-auto'
+    fetchProvider: 'http'
 - id: typert-loader
   config:
-    packages: ['todo-harness']
+    packages: ['dsh-todo-planner']

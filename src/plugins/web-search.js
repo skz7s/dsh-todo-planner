@@ -5,9 +5,9 @@ import { credentialKey, credentialRef, isCredentialKeySegment } from '@deepseek-
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment';
 import { builtinProviders } from '@earendil-works/pi-ai/providers/all';
 
-export const name = 'todo-harness-web-search';
+export const name = 'dsh-todo-planner-web-search';
 export const inject = ['web', 'llm', 'settings'];
-export const SEARCH_PROVIDER_ID = 'todo-harness-auto';
+export const SEARCH_PROVIDER_ID = 'dsh-todo-planner-auto';
 export const SEARCH_USAGE_EVENT = 'web/model-search-usage';
 const BACKENDS = ['auto', 'responses', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'disabled'];
 const DEFAULT_DEEPSEEK_BASE = 'https://api.deepseek.com/v1/tools';

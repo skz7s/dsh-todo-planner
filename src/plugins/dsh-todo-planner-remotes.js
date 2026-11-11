@@ -1,10 +1,10 @@
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 
-export class TodoHarnessRemotes extends TypertRemoteService {
-  static inject = ['schedule', 'agentDefaultModel', 'todoHarnessStore'];
+export class TodoPlannerRemotes extends TypertRemoteService {
+  static inject = ['schedule', 'agentDefaultModel', 'todoRepository', 'usageRepository', 'settingsRepository'];
 
   constructor(ctx) {
-    super(ctx, 'todoHarness');
+    super(ctx, 'todoPlanner');
   }
 
   createSchedule({ sessionId, request }) {
@@ -20,35 +20,34 @@ export class TodoHarnessRemotes extends TypertRemoteService {
   }
 
   listTodos(filters) {
-    return this.ctx.todoHarnessStore.listTodos(filters);
+    return Promise.all([
+      this.ctx.todoRepository.list(filters),
+      this.ctx.todoRepository.stats()
+    ]).then(([todos, stats]) => ({ todos, stats }));
   }
 
   createTodo(input) {
-    return this.ctx.todoHarnessStore.createTodo(input);
+    return this.ctx.todoRepository.create(input).then((todo) => ({ todo }));
   }
 
   updateTodo(payload) {
-    return this.ctx.todoHarnessStore.updateTodo(payload);
+    return this.ctx.todoRepository.update(payload?.id, payload?.patch ?? {}).then((todo) => ({ todo }));
   }
 
   deleteTodo(id) {
-    return this.ctx.todoHarnessStore.deleteTodo(id);
+    return this.ctx.todoRepository.remove(id).then((todo) => ({ todo }));
   }
 
   getSettings() {
-    return this.ctx.todoHarnessStore.getSettings();
+    return this.ctx.settingsRepository.get();
   }
 
   updateSettings(patch) {
-    return this.ctx.todoHarnessStore.updateSettings(patch);
+    return this.ctx.settingsRepository.update(patch);
   }
 
   getUsage() {
-    return this.ctx.todoHarnessStore.getUsage();
-  }
-
-  getBrandMark() {
-    return this.ctx.todoHarnessStore.getBrandMark();
+    return this.ctx.usageRepository.usage();
   }
 }
 
@@ -63,10 +62,9 @@ for (const method of [
   'deleteTodo',
   'getSettings',
   'updateSettings',
-  'getUsage',
-  'getBrandMark'
+  'getUsage'
 ]) {
-  Remote(TodoHarnessRemotes.prototype[method], {
+  Remote(TodoPlannerRemotes.prototype[method], {
     kind: 'method',
     name: method,
     static: false,
@@ -74,4 +72,4 @@ for (const method of [
     addInitializer(initializer) { initializers.push(initializer); }
   });
 }
-for (const initialize of initializers) initialize.call(Object.create(TodoHarnessRemotes.prototype));
+for (const initialize of initializers) initialize.call(Object.create(TodoPlannerRemotes.prototype));

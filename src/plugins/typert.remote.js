@@ -1,5 +1,4 @@
 import {
-  brandMarkResultSchema,
   createSchedulePayloadSchema,
   modelSelectionSchema,
   noResultSchema,
@@ -24,112 +23,103 @@ const requestParameter = (name, schemaName, create) => ({
 
 const result = (name, create) => ({
   mode: 'strict',
-  typeSymbol: `todo-harness#todoHarness/${name}:result`,
+  typeSymbol: `dsh-todo-planner#todoPlanner/${name}:result`,
   create
 });
 
 export const TYPERT_REMOTE = {
-  package: 'todo-harness',
+  package: 'dsh-todo-planner',
   descriptors: [
     {
-      id: 'todo-harness#todoHarness/createSchedule',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/createSchedule',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'createSchedule',
       invocation: { kind: 'direct' },
-      parameters: [requestParameter('payload', 'todo-harness#CreateSchedulePayload', () => createSchedulePayloadSchema)],
+      parameters: [requestParameter('payload', 'dsh-todo-planner#CreateSchedulePayload', () => createSchedulePayloadSchema)],
       result: result('createSchedule', () => scheduleRecordSchema)
     },
     {
-      id: 'todo-harness#todoHarness/getDefaultModel',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/getDefaultModel',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'getDefaultModel',
       invocation: { kind: 'direct' },
       parameters: [],
       result: result('getDefaultModel', () => modelSelectionSchema)
     },
     {
-      id: 'todo-harness#todoHarness/setDefaultModel',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/setDefaultModel',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'setDefaultModel',
       invocation: { kind: 'direct' },
-      parameters: [requestParameter('selection', 'todo-harness#ModelSelection', () => modelSelectionSchema)],
+      parameters: [requestParameter('selection', 'dsh-todo-planner#ModelSelection', () => modelSelectionSchema)],
       result: result('setDefaultModel', () => noResultSchema)
     },
     {
-      id: 'todo-harness#todoHarness/listTodos',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/listTodos',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'listTodos',
       invocation: { kind: 'direct' },
-      parameters: [requestParameter('filters', 'todo-harness#TodoFilters', () => todoFiltersSchema)],
+      parameters: [requestParameter('filters', 'dsh-todo-planner#TodoFilters', () => todoFiltersSchema)],
       result: result('listTodos', () => todoListResultSchema)
     },
     {
-      id: 'todo-harness#todoHarness/createTodo',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/createTodo',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'createTodo',
       invocation: { kind: 'direct' },
-      parameters: [requestParameter('input', 'todo-harness#TodoInput', () => todoInputSchema)],
+      parameters: [requestParameter('input', 'dsh-todo-planner#TodoInput', () => todoInputSchema)],
       result: result('createTodo', () => todoResultSchema)
     },
     {
-      id: 'todo-harness#todoHarness/updateTodo',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/updateTodo',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'updateTodo',
       invocation: { kind: 'direct' },
-      parameters: [requestParameter('payload', 'todo-harness#TodoUpdatePayload', () => todoUpdatePayloadSchema)],
+      parameters: [requestParameter('payload', 'dsh-todo-planner#TodoUpdatePayload', () => todoUpdatePayloadSchema)],
       result: result('updateTodo', () => todoResultSchema)
     },
     {
-      id: 'todo-harness#todoHarness/deleteTodo',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/deleteTodo',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'deleteTodo',
       invocation: { kind: 'direct' },
-      parameters: [requestParameter('id', 'todo-harness#TodoId', () => todoIdSchema)],
+      parameters: [requestParameter('id', 'dsh-todo-planner#TodoId', () => todoIdSchema)],
       result: result('deleteTodo', () => todoResultSchema)
     },
     {
-      id: 'todo-harness#todoHarness/getSettings',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/getSettings',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'getSettings',
       invocation: { kind: 'direct' },
       parameters: [],
       result: result('getSettings', () => settingsResultSchema)
     },
     {
-      id: 'todo-harness#todoHarness/updateSettings',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/updateSettings',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'updateSettings',
       invocation: { kind: 'direct' },
-      parameters: [requestParameter('patch', 'todo-harness#SettingsPatch', () => settingsPatchSchema)],
+      parameters: [requestParameter('patch', 'dsh-todo-planner#SettingsPatch', () => settingsPatchSchema)],
       result: result('updateSettings', () => settingsResultSchema)
     },
     {
-      id: 'todo-harness#todoHarness/getUsage',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
+      id: 'dsh-todo-planner#todoPlanner/getUsage',
+      service: 'todoPlanner',
+      namespace: 'todoPlanner',
       method: 'getUsage',
       invocation: { kind: 'direct' },
       parameters: [],
       result: result('getUsage', () => usageResultSchema)
     },
-    {
-      id: 'todo-harness#todoHarness/getBrandMark',
-      service: 'todoHarness',
-      namespace: 'todoHarness',
-      method: 'getBrandMark',
-      invocation: { kind: 'direct' },
-      parameters: [],
-      result: result('getBrandMark', () => brandMarkResultSchema)
-    }
   ]
 };
 

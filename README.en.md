@@ -1,61 +1,34 @@
-# Todo Harness
+# DSH Todo Planner
 
-[简体中文](README.md) | [English](README.en.md)
+[简体中文](README.md)
 
-Todo Harness is a todo-focused executive assistant built on a customized DeepSeek Harness. It turns assigned work into a persistent task list shared across conversations, then follows progress in a dedicated task board to reduce forgotten tasks and work lost in chat history.
+DSH Todo Planner is a native DeepSeek Harness plugin. It adds persistent Todo tools, a right-side task panel, schedule integration, usage tracking, and targeted model discovery and web-search routing improvements. Harness continues to own sessions, workspaces, permissions, and the native client chrome.
 
-![Full Todo Harness application with workspace and session navigation, conversation area, and fictional todo board](https://raw.githubusercontent.com/skz7s/Todo-Harness/main/docs/todo-harness-demo.png)
+## Install
 
-*Full application view; all task data is fictional.*
-
-## One-click installation
-
-The installer places the app in your user directory, installs runtime dependencies, and starts the service. macOS and Linux require Git, Node.js 20 or newer, and npm to be installed first. On Windows, the PowerShell installer uses `winget` to install missing Git or Node.js LTS (which includes npm); `winget` is provided by Windows App Installer, and Windows may show an authorization prompt for system-level installs.
-
-macOS / Linux:
+In an initialized Harness Web profile:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/skz7s/Todo-Harness/main/install.sh | sh
+dsh plugin --profile web add dsh-todo-planner
+dsh --profile web
 ```
 
-Windows PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/skz7s/Todo-Harness/main/install.ps1 | iex
-```
-
-## Deploy from source
+To install from a checkout:
 
 ```sh
-git clone https://github.com/skz7s/Todo-Harness.git
-cd Todo-Harness
-npm ci --omit=dev
-npm start
+git clone https://github.com/skz7s/dsh-todo-planner.git
+dsh plugin --profile web add /absolute/path/to/dsh-todo-planner
+dsh --profile web
 ```
 
-The launcher starts the Harness Web profile and Todo API, then opens the local page in your browser. On first use, choose a model provider and configure its credentials in Harness settings. You can then assign work in a conversation. Stop the service with `Ctrl+C` in the terminal.
+The bundle registers the Todo Host, authenticated Remote, Schedule integration, and model-routed web search. Todo data, usage, and settings default to `$DSH_HOME/todo-harness`; configure `dataRoot`, `dataFile`, `usageFile`, `settingsFile`, or `workspaceRoot` on the `dsh-todo-planner` profile entry when needed. The storage directory keeps its legacy name so existing installations need no migration.
 
-The default web address is `http://127.0.0.1:3210`, and the Todo API uses the next port. If the ports are occupied, run `npm start -- --port 3220` to choose a web port; the following port must also be available. Run `npm start -- --no-open` to start without opening a browser and print the local URL.
-
-### As a Harness plugin
-
-Users who already have DeepSeek Harness can install the Todo bundle without the standalone launcher. See the [plugin guide](docs/plugin.md) for installation and data locations.
-
-## Data, updates, and backups
-
-Todo data, usage, and app settings are stored under `~/.todo-harness` by default (`%USERPROFILE%\.todo-harness` on Windows). The Harness profile and browser authentication data are stored in its `dsh` subdirectory. Stop the service before backing up the entire data directory. Restoring it on another machine preserves local tasks and the Harness profile.
-
-The one-click installer places the app in `~/.local/share/todo-harness/app` by default (`%LOCALAPPDATA%\TodoHarness\app` on Windows); runtime data remains in the user data directory. Stop Todo Harness before updating, then run the installer again to update a clean installation. If it detects local changes, it stops and asks you to handle them first rather than overwriting them.
-
-Use environment variables to change paths: `TODO_HARNESS_INSTALL_DIR` sets the installation directory, `TODO_HARNESS_DATA_DIR` sets the Todo data directory, `DSH_HOME` sets the Harness profile directory, and `TODO_HARNESS_WORKSPACE_DIR` sets the agent workspace. The install directory is the default agent workspace. Todo Harness listens only on the local loopback interface and should not be exposed directly to the public internet.
-
-The project is pinned to DeepSeek Harness `0.2.0-rc.2`.
-
-## Development and license
+## Development
 
 ```sh
+npm ci
 npm test
 npm run check
 ```
 
-Apache-2.0. See [LICENSE](LICENSE). For the architecture overview, see [docs/architecture.md](docs/architecture.md).
+The plugin targets DeepSeek Harness `0.2.0-rc.2`. See [docs/plugin.md](docs/plugin.md) for installation, removal, and backup guidance, and [docs/architecture.md](docs/architecture.md) for the design. Apache-2.0; see [LICENSE](LICENSE).
